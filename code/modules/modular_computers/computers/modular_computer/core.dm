@@ -247,7 +247,7 @@
 			ui_update_needed = 1
 			last_battery_percent = batery_percent
 
-/*	if(station_time_timestamp() != last_world_time)
+/*	if(station_time_timestamp() != last_world_time) //Forces UI to twitch. Uncomment when fixed
 		last_world_time = station_time_timestamp()
 		ui_update_needed = 1
 */
