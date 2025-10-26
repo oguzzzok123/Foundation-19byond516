@@ -11,11 +11,13 @@
 	var/channel_name = "Announcements"
 	var/announcement_type = "Announcement"
 
-/datum/announcement/priority
+/datum/announcement/priority/New(do_log = 1, new_sound = 'sounds/misc/notice3.ogg', do_newscast = 0)
+	..(do_log, new_sound, do_newscast)
 	title = "Priority Announcement"
 	announcement_type = "Priority Announcement"
 
-/datum/announcement/priority/security
+/datum/announcement/priority/security/New(do_log = 1, new_sound = 'sounds/misc/notice3.ogg', do_newscast = 0)
+	..(do_log, new_sound, do_newscast)
 	title = "Security Announcement"
 	announcement_type = "Security Announcement"
 
