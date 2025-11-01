@@ -574,33 +574,63 @@
 	to_chat(usr, "<span class='adminnotice'>Тестовый бан отправлен в Discord</span>")
 // === Конец Discord Ban Webhook System ===
 
-/client/proc/debug_webhook()
-	set name = "Debug Webhook"
+// === Простая система вебхуков ===
+
+/proc/send_discord_ban(banned_ckey, admin_ckey, reason, duration, ban_type = "Игра")
+	// Прямо здесь указываем URL
+	var/webhook_url = "https://discord.com/api/webhooks/1434262975430135930/xJw47cQdMO1w-QlQOdT6VvhCaDuT7_2eBbUkUP4ZNZ_q67ddGdNalz4Sc3ZGNoIUs3Wj"
+	
+	var/message = "🚫 **БАН ВЫДАН**\n"
+	message += "👤 **Игрок:** [banned_ckey]\n"
+	message += "🛡️ **Администратор:** [admin_ckey]\n" 
+	message += "📝 **Причина:** [reason]\n"
+	
+	if(duration && duration > 0)
+		message += "⏰ **Длительность:** [duration] минут\n"
+	else
+		message += "⏰ **Длительность:** Перманентно\n"
+	
+	message += "🔧 **Тип:** [ban_type]\n"
+	message += "🕐 **Время:** [time2text(world.realtime, "YYYY-MM-DD HH:MM:SS")]"
+	
+	world.log << "Отправка бана в Discord: [banned_ckey]"
+	
+	// Простая отправка
+	spawn(0)
+		var/result = world.Export("[webhook_url]?wait=1", list("content" = message))
+		if(result)
+			world.log << "Discord: Успешно"
+		else
+			world.log << "Discord: Ошибка отправки"
+
+// Тестовый верб
+/client/proc/test_simple_webhook()
+	set name = "Test Simple Webhook"
 	set category = "Admin.Debug"
 	
 	if(!check_rights(R_BAN)) 
 		return
 	
-	world.log << "=== WEBHOOK DEBUG START ==="
+	world.log << "=== ТЕСТ ПРОСТОГО ВЕБХУКА ==="
+	send_discord_ban("TestPlayer", usr.ckey, "Тестовый бан", 60, "Тест")
+	to_chat(usr, "<span class='adminnotice'>Тест отправлен. Проверь логи сервера.</span>")
+
+// Верб для ручного логирования
+/client/proc/manual_log_ban()
+	set name = "Manual Log Ban"
+	set category = "Admin"
 	
-	// Базовый URL без спецсимволов
-	var/base_url = "https://discord.com/api/webhooks/1434262975430135930/xJw47cQdMO1w"
-	var/token_part = "QlQOdT6VvhCaDuT7_2eBbUkUP4ZNZ_q67ddGdNalz4Sc3ZGNoIUs3Wj"
-	var/full_url = "[base_url]-[token_part]"
+	if(!check_rights(R_BAN))
+		return
 	
-	world.log << "Webhook URL: [full_url]"
+	var/banned_ckey = input("Ключ игрока:", "Лог бана") as text|null
+	if(!banned_ckey) return
+		
+	var/reason = input("Причина бана:", "Лог бана") as text|null
+		if(!reason) reason = "Не указана"
 	
-	var/test_message = "🔧 Тест вебхука от SS13 сервера"
-	var/encoded_message = url_encode(test_message)
-	var/request_url = "[full_url]?wait=1&content=[encoded_message]"
+var/duration = input("Длительность (минут, 0=перма):", "Лог бана") as num|null
+duration = duration || 0
 	
-	world.log << "Sending test message to: [request_url]"
-	var/result = world.Export(request_url)
-	
-	if(result)
-		world.log << "Webhook SUCCESS: [result]"
-	else
-		world.log << "Webhook FAILED: No response"
-	
-	world.log << "=== WEBHOOK DEBUG END ==="
-	to_chat(usr, "<span class='adminnotice'>Проверь логи сервера</span>")
+	send_discord_ban(banned_ckey, usr.ckey, reason, duration, "Ручной лог")
+	to_chat(usr, "<span class='adminnotice'>Бан [banned_ckey] записан</span>")
