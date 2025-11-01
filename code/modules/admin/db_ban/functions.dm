@@ -556,7 +556,7 @@
 		var/url = "[BAN_WEBHOOK_URL]?wait=1"
 		world.Export(url, list("content" = message))
 
-// Тестовый верб для проверки
+
 /client/proc/test_ban_webhook()
 	set name = "Test Ban Webhook"
 	set category = "Admin.Debug"
@@ -573,3 +573,34 @@
 	)
 	to_chat(usr, "<span class='adminnotice'>Тестовый бан отправлен в Discord</span>")
 // === Конец Discord Ban Webhook System ===
+
+/client/proc/debug_webhook()
+	set name = "Debug Webhook"
+	set category = "Admin.Debug"
+	
+	if(!check_rights(R_BAN)) 
+		return
+	
+	world.log << "=== WEBHOOK DEBUG START ==="
+	
+	// Базовый URL без спецсимволов
+	var/base_url = "https://discord.com/api/webhooks/1434262975430135930/xJw47cQdMO1w"
+	var/token_part = "QlQOdT6VvhCaDuT7_2eBbUkUP4ZNZ_q67ddGdNalz4Sc3ZGNoIUs3Wj"
+	var/full_url = "[base_url]-[token_part]"
+	
+	world.log << "Webhook URL: [full_url]"
+	
+	var/test_message = "🔧 Тест вебхука от SS13 сервера"
+	var/encoded_message = url_encode(test_message)
+	var/request_url = "[full_url]?wait=1&content=[encoded_message]"
+	
+	world.log << "Sending test message to: [request_url]"
+	var/result = world.Export(request_url)
+	
+	if(result)
+		world.log << "Webhook SUCCESS: [result]"
+	else
+		world.log << "Webhook FAILED: No response"
+	
+	world.log << "=== WEBHOOK DEBUG END ==="
+	to_chat(usr, "<span class='adminnotice'>Проверь логи сервера</span>")
