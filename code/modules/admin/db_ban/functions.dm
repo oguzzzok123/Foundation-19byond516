@@ -526,3 +526,50 @@
 			qdel(select_query)
 
 	show_browser(usr, output,"window=lookupbans;size=900x700")
+
+// === Discord Ban Webhook System ===
+// Вставь свой Discord Webhook URL здесь
+#define BAN_WEBHOOK_URL "https://discord.com/api/webhooks/1434262975430135930/xJw47cQdMO1w-QlQOdT6VvhCaDuT7_2eBbUkUP4ZNZ_q67ddGdNalz4Sc3ZGNoIUs3Wj"
+
+/proc/log_ban_to_discord(banned_ckey, admin_ckey, reason, duration, ban_type = "Игра")
+	if(!BAN_WEBHOOK_URL || BAN_WEBHOOK_URL == "https://discord.com/api/webhooks/1434262975430135930/xJw47cQdMO1w-QlQOdT6VvhCaDuT7_2eBbUkUP4ZNZ_q67ddGdNalz4Sc3ZGNoIUs3Wj")
+		world.log << "Ban webhook: URL not configured"
+		return
+	
+	var/message = "🚫 **БАН ВЫДАН**\n"
+	message += "👤 **Игрок:** [banned_ckey || "Неизвестно"]\n"
+	message += "🛡️ **Администратор:** [admin_ckey || "Сервер"]\n" 
+	message += "📝 **Причина:** [reason || "Не указана"]\n"
+	
+	if(duration && duration > 0)
+		message += "⏰ **Длительность:** [duration] минут\n"
+	else
+		message += "⏰ **Длительность:** Перманентно\n"
+	
+	message += "🔧 **Тип:** [ban_type]\n"
+	message += "🕐 **Время:** [time2text(world.realtime, "YYYY-MM-DD HH:MM:SS")]"
+	
+	world.log << "Sending ban to Discord: [banned_ckey]"
+	
+	// Простая отправка в Discord
+	spawn(0)
+		var/url = "[BAN_WEBHOOK_URL]?wait=1"
+		world.Export(url, list("content" = message))
+
+// Тестовый верб для проверки
+/client/proc/test_ban_webhook()
+	set name = "Test Ban Webhook"
+	set category = "Admin.Debug"
+	
+	if(!check_rights(R_BAN)) 
+		return
+	
+	log_ban_to_discord(
+		"TestPlayer", 
+		usr.ckey, 
+		"Тестовый бан для проверки webhook", 
+		60, 
+		"Тест"
+	)
+	to_chat(usr, "<span class='adminnotice'>Тестовый бан отправлен в Discord</span>")
+// === Конец Discord Ban Webhook System ===
