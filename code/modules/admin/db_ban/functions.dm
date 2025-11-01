@@ -572,12 +572,10 @@
 		"Тест"
 	)
 	to_chat(usr, "<span class='adminnotice'>Тестовый бан отправлен в Discord</span>")
-// === Конец Discord Ban Webhook System ===
 
-// === Простая система вебхуков ===
+// === Discord Ban Webhook System ===
 
-/proc/send_discord_ban(banned_ckey, admin_ckey, reason, duration, ban_type = "Игра")
-	// Прямо здесь указываем URL
+/proc/send_discord_ban(banned_ckey, admin_ckey, reason, duration, ban_type)
 	var/webhook_url = "https://discord.com/api/webhooks/1434262975430135930/xJw47cQdMO1w-QlQOdT6VvhCaDuT7_2eBbUkUP4ZNZ_q67ddGdNalz4Sc3ZGNoIUs3Wj"
 	
 	var/message = "🚫 **БАН ВЫДАН**\n"
@@ -585,7 +583,7 @@
 	message += "🛡️ **Администратор:** [admin_ckey]\n" 
 	message += "📝 **Причина:** [reason]\n"
 	
-	if(duration && duration > 0)
+	if(duration > 0)
 		message += "⏰ **Длительность:** [duration] минут\n"
 	else
 		message += "⏰ **Длительность:** Перманентно\n"
@@ -595,7 +593,6 @@
 	
 	world.log << "Отправка бана в Discord: [banned_ckey]"
 	
-	// Простая отправка
 	spawn(0)
 		var/result = world.Export("[webhook_url]?wait=1", list("content" = message))
 		if(result)
@@ -603,7 +600,6 @@
 		else
 			world.log << "Discord: Ошибка отправки"
 
-// Тестовый верб
 /client/proc/test_simple_webhook()
 	set name = "Test Simple Webhook"
 	set category = "Admin.Debug"
@@ -615,22 +611,24 @@
 	send_discord_ban("TestPlayer", usr.ckey, "Тестовый бан", 60, "Тест")
 	to_chat(usr, "<span class='adminnotice'>Тест отправлен. Проверь логи сервера.</span>")
 
-// Верб для ручного логирования
 /client/proc/manual_log_ban()
-	set name = "Manual Log Ban"
+	set name = "Manual Log Ban" 
 	set category = "Admin"
 	
 	if(!check_rights(R_BAN))
 		return
 	
-	var/banned_ckey = input("Ключ игрока:", "Лог бана") as text|null
-	if(!banned_ckey) return
+	var/banned_ckey = input("Ключ игрока:", "Лог бана") as text
+	if(!banned_ckey)
+		return
 		
-	var/reason = input("Причина бана:", "Лог бана") as text|null
-		if(!reason) reason = "Не указана"
+	var/reason = input("Причина бана:", "Лог бана") as text
+	if(!reason)
+		reason = "Не указана"
 	
-var/duration = input("Длительность (минут, 0=перма):", "Лог бана") as num|null
-duration = duration || 0
+	var/duration = input("Длительность (минут, 0=перма):", "Лог бана") as num
+	if(!duration)
+		duration = 0
 	
 	send_discord_ban(banned_ckey, usr.ckey, reason, duration, "Ручной лог")
 	to_chat(usr, "<span class='adminnotice'>Бан [banned_ckey] записан</span>")
