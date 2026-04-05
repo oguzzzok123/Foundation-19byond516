@@ -1,10 +1,5 @@
 #if !defined(using_map_DATUM)
 
-	#include "site53_announcements.dm"
-	#include "site53areas.dm"
-	#include "site53elevators.dm"
-	#include "site53_presets.dm"
-	#include "site53shuttles.dm"
 
 	#include "items/encryption_keys.dm"
 	#include "items/headsets.dm"
