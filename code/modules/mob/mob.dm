@@ -15,6 +15,7 @@
 		QDEL_NULL(skillset)
 	for(var/obj/item/grab/G in grabbed_by)
 		qdel(G)
+	grabbed_by.Cut()
 	clear_fullscreen()
 	if(client)
 		remove_screen_obj_references()
@@ -68,33 +69,29 @@
 	add_traits(roundstart_traits, ROUNDSTART_TRAIT)
 
 /mob/proc/show_message(msg, type, alt, alt_type)//Message, type of message (1 or 2), alternative message, alt message type (1 or 2)
-	if(!client)	return
+	if(!client)
+		return
 
-	//spaghetti code
-	if(type)
-		if((type & VISIBLE_MESSAGE) && !can_see())//Vision related
-			if(!alt)
-				return
-			else
-				msg = alt
-				type = alt_type
-		if((type & AUDIBLE_MESSAGE) && !can_hear())//Hearing related
-			if(!alt)
-				return
-			else
-				msg = alt
-				type = alt_type
-				if((type & VISIBLE_MESSAGE) && can_see())
-					return
+	var/can_see_msg = can_see()
+	var/can_hear_msg = can_hear()
+
+	if(type & VISIBLE_MESSAGE && !can_see_msg)
+		if(!alt)
+			return
+		msg = alt
+		type = alt_type
+
+	if(type & AUDIBLE_MESSAGE && !can_hear_msg)
+		if(!alt)
+			return
+		msg = alt
+		type = alt_type
+		if(type & VISIBLE_MESSAGE && can_see_msg)
+			return
 
 	to_chat(src, msg)
 
 
-// Show a message to all mobs and objects in sight of this one
-// This would be for visible actions by the src mob
-// message is the message output to anyone who can see e.g. "[src] does something!"
-// self_message (optional) is what the src mob sees  e.g. "You do something!"
-// blind_message (optional) is what blind people will hear e.g. "You hear something!"
 /mob/visible_message(message, self_message, blind_message, range = world.view, checkghosts = null, narrate = FALSE, list/exclude_objs = null, list/exclude_mobs = null)
 	set waitfor = FALSE
 	var/turf/T = get_turf(src)
@@ -102,16 +99,19 @@
 	var/list/objs = list()
 	get_mobs_and_objs_in_view_fast(T,range, mobs, objs, checkghosts)
 
+	var/has_exclude_objs = exclude_objs?.len
+	var/has_exclude_mobs = exclude_mobs?.len
+
 	for(var/o in objs)
 		var/obj/O = o
-		if (exclude_objs?.len && (O in exclude_objs))
+		if (has_exclude_objs && (O in exclude_objs))
 			exclude_objs -= O
 			continue
 		O.show_message(message, VISIBLE_MESSAGE, blind_message, AUDIBLE_MESSAGE)
 
 	for(var/m in mobs)
 		var/mob/M = m
-		if (exclude_mobs?.len && (M in exclude_mobs))
+		if (has_exclude_mobs && (M in exclude_mobs))
 			exclude_mobs -= M
 			continue
 
@@ -137,36 +137,32 @@
 	if(bound_overlay)
 		bound_overlay.visible_message(message, blind_message, range)
 
-/**
- * Show a message to all mobs and objects in sight of this one or `causer`
- * This should be used for messages where two mobs interact - healing, injections, fighting, and so on
- * message is the message output to anyone who can see, e.g. "[causer] does something to [src]!"
- * self_message (optional) is what the src mob sees, e.g. "[causer] does something to you!"
- * causer_message is what the causer mob sees, e.g. "You do something to [src]!"
- * blind_message (optional) is what blind people will hear, e.g. "You hear something!"
- * blind_self_message (optional) is what the source mob will hear/feel if blind, e.g. "You feel something done to you!"
- */
 /mob/proc/interact_message(mob/causer, message, self_message, causer_message, blind_message, blind_self_message, range = world.view, checkghosts = null, mode = VISIBLE_MESSAGE, list/exclude_objs = null, list/exclude_mobs = null)
 	set waitfor = FALSE
 	var/turf/T = get_turf(src)
 	var/list/mobs = list()
 	var/list/objs = list()
 	get_mobs_and_objs_in_view_fast(T, range, mobs, objs, checkghosts)
-	T = get_turf(causer)
-	get_mobs_and_objs_in_view_fast(T, range, mobs, objs, checkghosts) // show the message to atoms that can see either mob
-	mobs = uniquelist(mobs) // clear the inevitable duplicates that'll show up when running the above logic
-	objs = uniquelist(objs)
+
+	var/turf/T2 = get_turf(causer)
+	if(T2 != T)
+		get_mobs_and_objs_in_view_fast(T2, range, mobs, objs, checkghosts)
+		mobs = uniquelist(mobs)
+		objs = uniquelist(objs)
+
+	var/has_exclude_objs = exclude_objs?.len
+	var/has_exclude_mobs = exclude_mobs?.len
 
 	for (var/o in objs)
 		var/obj/O = o
-		if (exclude_objs?.len && (O in exclude_objs))
+		if (has_exclude_objs && (O in exclude_objs))
 			exclude_objs -= O
 			continue
 		O.show_message(message, VISIBLE_MESSAGE, blind_message, AUDIBLE_MESSAGE)
 
 	for (var/m in mobs)
 		var/mob/M = m
-		if (exclude_mobs?.len && (M in exclude_mobs))
+		if (has_exclude_mobs && (M in exclude_mobs))
 			exclude_mobs -= M
 			continue
 
@@ -195,21 +191,18 @@
 	if (bound_overlay)
 		bound_overlay.visible_message(message, blind_message, range)
 
-// Show a message to all mobs and objects in earshot of this one
-// This would be for audible actions by the src mob
-// message is the message output to anyone who can hear.
-// self_message (optional) is what the src mob hears.
-// deaf_message (optional) is what deaf people will see.
-// hearing_distance (optional) is the range, how many tiles away the message can be heard.
 /mob/audible_message(message, self_message, deaf_message, hearing_distance = world.view, checkghosts = null, narrate = FALSE, list/exclude_objs = null, list/exclude_mobs = null)
 	var/turf/T = get_turf(src)
 	var/list/mobs = list()
 	var/list/objs = list()
 	get_mobs_and_objs_in_view_fast(T, hearing_distance, mobs, objs, checkghosts)
 
+	var/has_exclude_objs = exclude_objs?.len
+	var/has_exclude_mobs = exclude_mobs?.len
+
 	for(var/m in mobs)
 		var/mob/M = m
-		if (exclude_mobs?.len && (M in exclude_mobs))
+		if (has_exclude_mobs && (M in exclude_mobs))
 			exclude_mobs -= M
 			continue
 		var/mob_message = message
@@ -228,7 +221,7 @@
 
 	for(var/o in objs)
 		var/obj/O = o
-		if (exclude_objs?.len && (O in exclude_objs))
+		if (has_exclude_objs && (O in exclude_objs))
 			exclude_objs -= O
 			continue
 		O.show_message(message, AUDIBLE_MESSAGE, deaf_message, VISIBLE_MESSAGE)

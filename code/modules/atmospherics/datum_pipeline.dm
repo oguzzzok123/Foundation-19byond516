@@ -128,29 +128,33 @@
 	return network
 
 /datum/pipeline/proc/mingle_with_turf(turf/simulated/target, mingle_volume)
-	var/datum/gas_mixture/air_sample = air.remove_ratio(mingle_volume/air.volume)
+	if(!istype(target))
+		return
+
+	var/ratio = mingle_volume/air.volume
+	if(ratio <= 0 || ratio > 1)
+		return
+
+	var/datum/gas_mixture/air_sample = air.remove_ratio(ratio)
+	if(!air_sample)
+		return
+
 	air_sample.volume = mingle_volume
 
-	if(istype(target) && target.zone)
-		//Have to consider preservation of group statuses
-		var/datum/gas_mixture/turf_copy = new
-
-		turf_copy.copy_from(target.zone.air)
-		turf_copy.volume = target.zone.air.volume //Copy a good representation of the turf from parent group
-
-		equalize_gases(list(air_sample, turf_copy))
-		air.merge(air_sample)
-
-		turf_copy.subtract(target.zone.air)
-
-		target.zone.air.merge(turf_copy)
-
+	var/datum/gas_mixture/turf_air
+	if(target.zone && target.zone.air)
+		turf_air = target.zone.air
 	else
-		var/datum/gas_mixture/turf_air = target.return_air()
+		turf_air = target.return_air()
 
-		equalize_gases(list(air_sample, turf_air))
+	if(!turf_air)
 		air.merge(air_sample)
-		//turf_air already modified by equalize_gases()
+		if(network)
+			network.update = 1
+		return
+
+	equalize_gases(list(air_sample, turf_air))
+	air.merge(air_sample)
 
 	if(network)
 		network.update = 1

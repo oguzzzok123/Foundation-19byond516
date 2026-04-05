@@ -86,7 +86,7 @@
 		var/obj/item/organ/internal/eyes/eyes = internal_organs_by_name[BP_EYES]
 		eyes?.handle_blink()
 
-	if (prob(0.25) && !isspecies(src, SPECIES_SCP049_1) && !isscp049(src))
+	if (!isscp049(src) && prob(0.25) && !isspecies(src, SPECIES_SCP049_1))
 		humanStageHandler.setStage("Pestilence", 1)
 
 	if(!handle_some_updates())
@@ -209,7 +209,8 @@
 		if(!vision || (vision && !vision.is_usable()))   // Vision organs cut out or broken? Permablind.
 			become_blind(MISSING_ORGAN_TRAIT)
 		else
-			cure_blind(MISSING_ORGAN_TRAIT)
+			if(is_blind())
+				cure_blind(MISSING_ORGAN_TRAIT)
 
 	else if(!species.vision_organ) // Presumably if a species has no vision organs, they see via some other means.
 		cure_blind(MISSING_ORGAN_TRAIT)
@@ -604,7 +605,8 @@
 		if(stat == UNCONSCIOUS)
 			become_blind(STAT_TRAIT)
 		else
-			cure_blind(STAT_TRAIT)
+			if(is_blind())
+				cure_blind(STAT_TRAIT)
 
 		if(handle_death_check())
 			death()
