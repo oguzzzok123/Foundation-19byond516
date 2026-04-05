@@ -151,6 +151,8 @@
 	return pipe_color
 
 /obj/machinery/atmospherics/set_color(new_color)
+	if(pipe_color == new_color)
+		return
 	pipe_color = new_color
 	update_icon()
 
@@ -182,7 +184,7 @@
 
 	var/minimum_temperature_difference = 300
 	var/thermal_conductivity = 0 //WALL_HEAT_TRANSFER_COEFFICIENT No
-
+	var/last_leak_check = 0	// Cooldown for leak processing
 	level = 1
 
 	rotate_class = PIPE_ROTATE_TWODIR
@@ -201,9 +203,12 @@
 	update_icon()
 
 /obj/machinery/atmospherics/pipe/simple/Process()
-	if(!parent) //This should cut back on the overhead calling build_network thousands of times per cycle
+	if(!parent)
 		..()
 	else if(leaking)
+		if(world.time - last_leak_check < 20)
+			return
+		last_leak_check = world.time
 		parent.mingle_with_turf(loc, volume)
 		var/air = parent.air && parent.air.return_pressure()
 		if(!sound_token && air)
@@ -287,7 +292,9 @@
 		set_leaking(TRUE)
 
 /obj/machinery/atmospherics/pipe/simple/update_underlays()
-	return
+	if(!node1 && !node2)
+		return
+	..()
 
 /obj/machinery/atmospherics/pipe/simple/atmos_init()
 	..()
@@ -546,6 +553,8 @@
 
 
 /obj/machinery/atmospherics/pipe/manifold/update_underlays()
+	if(!node1 && !node2 && !node3)
+		return
 	..()
 	update_icon()
 
@@ -823,6 +832,8 @@
 
 
 /obj/machinery/atmospherics/pipe/manifold4w/update_underlays()
+	if(!node1 && !node2 && !node3 && !node4)
+		return
 	..()
 	update_icon()
 
@@ -1091,6 +1102,7 @@
 	initialize_directions = SOUTH
 
 	var/build_killswitch = 1
+	var/last_vent_check = 0	// Cooldown for vent processing
 	build_icon_state = "uvent"
 
 /obj/machinery/atmospherics/pipe/vent/high_volume
@@ -1106,6 +1118,9 @@
 		..()
 		return
 	else
+		if(world.time - last_vent_check < 10)
+			return
+		last_vent_check = world.time
 		parent.mingle_with_turf(loc, volume)
 
 /obj/machinery/atmospherics/pipe/vent/Destroy()

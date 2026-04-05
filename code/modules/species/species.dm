@@ -561,6 +561,7 @@ The slots that you can use are found in items_clothing.dm and are the inventory 
 	if(H.equipment_tint_total >= TINT_BLIND)
 		H.become_blind(EQUIPMENT_TINT_TOTAL_TRAIT)
 	else
+		if(H.is_blind())
 		H.cure_blind(EQUIPMENT_TINT_TOTAL_TRAIT)
 
 	if(!H.client)//no client, no screen to update

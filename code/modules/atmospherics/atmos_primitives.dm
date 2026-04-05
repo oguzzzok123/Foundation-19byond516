@@ -94,10 +94,7 @@
 		var/obj/machinery/portable_atmospherics/P = M
 		P.last_flow_rate = (transfer_moles/source.total_moles)*source.volume //group_multiplier gets divided out here
 
-	var/datum/gas_mixture/removed = source.remove(transfer_moles)
-	if(!removed) //Just in case
-		return -1
-	sink.merge(removed)
+	source.transfer_to(transfer_moles, sink)
 
 	return 0
 
@@ -384,12 +381,10 @@
 
 		var/transfer_moles = total_transfer_moles * mix_ratio
 
-		var/datum/gas_mixture/removed = source.remove(transfer_moles)
+		source.transfer_to(transfer_moles, sink)
 
 		var/power_draw = transfer_moles * source_specific_power[source]
 		total_power_draw += power_draw
-
-		sink.merge(removed)
 
 	return total_power_draw
 

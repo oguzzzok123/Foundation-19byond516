@@ -241,28 +241,77 @@
 					. |= M		// Since we're already looping through mobs, why bother using |= ? This only slows things down.
 	return .
 
+/proc/dview_filtered(range = world.view, center, invis_flags = 0, list/mobs, list/objs)
+	if(!center)
+		return
+
+	if(!isturf(center))
+		center = get_turf(center)
+
+	GLOB.dview_mob.loc = center
+	GLOB.dview_mob.see_invisible = invis_flags
+
+	for(var/atom/A in view(range, GLOB.dview_mob))
+		if(ismob(A))
+			mobs += A
+		else if(isobj(A))
+			objs += A
+
+	GLOB.dview_mob.loc = null
+
 /proc/get_mobs_and_objs_in_view_fast(turf/T, range, list/mobs, list/objs, checkghosts = null)
 
-	var/list/hear = dview(range,T,INVISIBILITY_MAXIMUM)
+	// Собираем мобов и объекты напрямую, без промежуточного списка
+	var/list/visible_mobs = list()
+	var/list/visible_objs = list()
+	dview_filtered(range, T, INVISIBILITY_MAXIMUM, visible_mobs, visible_objs)
+
+	// Собираем турфы из видимых мобов/объектов для быстрой проверки
 	var/list/hearturfs = list()
+	for(var/mob/M in visible_mobs)
+		var/turf/M_turf = M.loc
+		if(isturf(M_turf))
+			hearturfs[M_turf] = TRUE
+		mobs[M] = M
 
-	for(var/atom/movable/AM in hear)
-		if(ismob(AM))
-			mobs += AM
-			hearturfs += get_turf(AM)
-		else if(isobj(AM))
-			objs += AM
-			hearturfs += get_turf(AM)
+	for(var/obj/O in visible_objs)
+		var/turf/O_turf = O.loc
+		if(isturf(O_turf))
+			hearturfs[O_turf] = TRUE
+		objs[O] = O
 
-	for(var/mob/M in GLOB.player_list)
-		if(checkghosts && M.stat == DEAD && M.get_preference_value(checkghosts) != GLOB.PREF_NEARBY)
-			mobs |= M
-		else if(get_turf(M) in hearturfs)
-			mobs |= M
+	// Оптимизация: кэшируем проверку checkghosts
+	var/has_checkghosts = !isnull(checkghosts)
+	var/pref_nearby = GLOB.PREF_NEARBY
 
-	for(var/obj/O in GLOB.listening_objects)
-		if(get_turf(O) in hearturfs)
-			objs |= O
+	// Оптимизация: используем индексированный доступ к списку
+	var/list/player_list = GLOB.player_list
+	var/l = player_list.len
+	for(var/i = 1, i <= l, i++)
+		var/mob/M = player_list[i]
+		if(!istype(M))
+			continue
+
+		if(has_checkghosts && M.stat == DEAD)
+			if(M.get_preference_value(checkghosts) != pref_nearby)
+				mobs[M] = M
+			continue
+
+		var/turf/M_turf = M.loc
+		if(isturf(M_turf) && hearturfs[M_turf])
+			mobs[M] = M
+
+	// Оптимизация: прямой доступ к списку объектов
+	var/list/listening_objects = GLOB.listening_objects
+	l = listening_objects.len
+	for(var/i = 1, i <= l, i++)
+		var/obj/O = listening_objects[i]
+		if(!istype(O))
+			continue
+
+		var/turf/O_turf = O.loc
+		if(isturf(O_turf) && hearturfs[O_turf])
+			objs[O] = O
 
 
 

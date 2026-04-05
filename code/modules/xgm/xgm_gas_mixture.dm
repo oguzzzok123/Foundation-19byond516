@@ -23,9 +23,10 @@
 	group_multiplier = _group_multiplier
 
 /datum/gas_mixture/proc/get_gas(gasid)
-	if(!gas.len)
-		return 0 //if the list is empty BYOND treats it as a non-associative list, which runtimes
-	return gas[gasid] * group_multiplier
+	var/amount = gas[gasid]
+	if(!amount)
+		return 0
+	return amount * group_multiplier
 
 /datum/gas_mixture/proc/get_total_moles()
 	return total_moles * group_multiplier
@@ -88,7 +89,7 @@
 //Merges all the gas from another mixture into this one.  Respects group_multipliers and adjusts temperature correctly.
 //Does not modify giver in any way.
 /datum/gas_mixture/proc/merge(const/datum/gas_mixture/giver)
-	if(!giver)
+	if(!giver || giver.total_moles <= 0)
 		return
 
 	if(abs(temperature-giver.temperature)>MINIMUM_TEMPERATURE_DELTA_TO_CONSIDER)
@@ -99,8 +100,9 @@
 			temperature = (giver.temperature*giver_heat_capacity + temperature*self_heat_capacity)/combined_heat_capacity
 
 	if((group_multiplier != 1)||(giver.group_multiplier != 1))
+		var/multiplier = giver.group_multiplier / group_multiplier
 		for(var/g in giver.gas)
-			gas[g] += giver.gas[g] * giver.group_multiplier / group_multiplier
+			gas[g] += giver.gas[g] * multiplier
 	else
 		for(var/g in giver.gas)
 			gas[g] += giver.gas[g]
@@ -204,12 +206,13 @@
 
 //Updates the total_moles count and trims any empty gases.
 /datum/gas_mixture/proc/update_values()
-	total_moles = 0
+	var/new_total = 0
 	for(var/g in gas)
 		if(gas[g] <= 0)
 			gas -= g
 		else
-			total_moles += gas[g]
+			new_total += gas[g]
+	total_moles = new_total
 
 
 //Returns the pressure of the gas mix.  Only accurate if there have been no gas modifications since update_values() has been called.
@@ -289,6 +292,114 @@
 
 	return removed
 
+// --- INLINE TRANSFER PROCS (без создания нового объекта) ---
+
+// Переносит gas напрямую в другой gas_mixture без создания временного объекта.
+// Возвращает фактическое количество перенесённых молей.
+/datum/gas_mixture/proc/transfer_to(amount, datum/gas_mixture/sink)
+	amount = min(amount, total_moles * group_multiplier)
+	if(amount <= 0)
+		return 0
+
+	// Считаем температуру смеси после переноса
+	if(sink.total_moles > 0 && abs(temperature - sink.temperature) > MINIMUM_TEMPERATURE_DELTA_TO_CONSIDER)
+		var/self_heat_capacity = heat_capacity()
+		var/sink_heat_capacity = sink.heat_capacity()
+		var/combined_heat_capacity = self_heat_capacity + sink_heat_capacity
+		if(combined_heat_capacity != 0)
+			sink.temperature = (temperature * self_heat_capacity + sink.temperature * sink_heat_capacity) / combined_heat_capacity
+
+	// Переносим газ пропорционально
+	var/ratio = amount / (total_moles * group_multiplier)
+	if((group_multiplier != 1) || (sink.group_multiplier != 1))
+		var/multiplier = group_multiplier / sink.group_multiplier
+		for(var/g in gas)
+			var/transfer_amount = QUANTIZE(gas[g] * ratio)
+			sink.gas[g] += transfer_amount * multiplier
+			gas[g] -= transfer_amount
+	else
+		for(var/g in gas)
+			var/transfer_amount = QUANTIZE(gas[g] * ratio)
+			sink.gas[g] += transfer_amount
+			gas[g] -= transfer_amount
+
+	update_values()
+	sink.update_values()
+
+	return amount
+
+// Переносит процент газа напрямую в другой gas_mixture без создания временного объекта.
+/datum/gas_mixture/proc/transfer_ratio(ratio, datum/gas_mixture/sink, out_group_multiplier = 1)
+	if(ratio <= 0)
+		return
+	out_group_multiplier = between(1, out_group_multiplier, group_multiplier)
+	ratio = min(ratio, 1)
+
+	// Температура переносится как есть (source temperature)
+	if(sink.total_moles > 0 && abs(temperature - sink.temperature) > MINIMUM_TEMPERATURE_DELTA_TO_CONSIDER)
+		var/transferred_moles = total_moles * ratio * group_multiplier
+		var/self_heat_capacity = gas_data.specific_heat[gas[1]] * transferred_moles // Approximation
+		var/sink_heat_capacity = sink.heat_capacity()
+		var/combined_heat_capacity = self_heat_capacity + sink_heat_capacity
+		if(combined_heat_capacity != 0)
+			sink.temperature = (temperature * self_heat_capacity + sink.temperature * sink_heat_capacity) / combined_heat_capacity
+
+	if((group_multiplier != 1) || (sink.group_multiplier != 1))
+		var/multiplier = group_multiplier / sink.group_multiplier
+		for(var/g in gas)
+			var/transfer_amount = gas[g] * ratio * multiplier
+			sink.gas[g] += transfer_amount
+			gas[g] = gas[g] * (1 - ratio)
+	else
+		for(var/g in gas)
+			var/transfer_amount = gas[g] * ratio
+			sink.gas[g] += transfer_amount
+			gas[g] = gas[g] * (1 - ratio)
+
+	sink.volume = volume * group_multiplier / out_group_multiplier
+	update_values()
+	sink.update_values()
+
+// Переносит газ по флагу напрямую в другой gas_mixture без создания временного объекта.
+/datum/gas_mixture/proc/transfer_by_flag(flag, amount, datum/gas_mixture/sink)
+	if(!flag || amount <= 0)
+		return 0
+
+	var/sum = 0
+	for(var/g in gas)
+		if(gas_data.flags[g] & flag)
+			sum += gas[g]
+
+	if(sum <= 0)
+		return 0
+
+	// Температура смеси
+	if(sink.total_moles > 0 && abs(temperature - sink.temperature) > MINIMUM_TEMPERATURE_DELTA_TO_CONSIDER)
+		var/self_heat_capacity = heat_capacity()
+		var/sink_heat_capacity = sink.heat_capacity()
+		var/combined_heat_capacity = self_heat_capacity + sink_heat_capacity
+		if(combined_heat_capacity != 0)
+			sink.temperature = (temperature * self_heat_capacity + sink.temperature * sink_heat_capacity) / combined_heat_capacity
+
+	if((group_multiplier != 1) || (sink.group_multiplier != 1))
+		var/multiplier = group_multiplier / sink.group_multiplier
+		for(var/g in gas)
+			if(gas_data.flags[g] & flag)
+				var/transfer_amount = QUANTIZE((gas[g] / sum) * amount)
+				sink.gas[g] += transfer_amount * multiplier
+				gas[g] -= transfer_amount
+	else
+		for(var/g in gas)
+			if(gas_data.flags[g] & flag)
+				var/transfer_amount = QUANTIZE((gas[g] / sum) * amount)
+				sink.gas[g] += transfer_amount
+				gas[g] -= transfer_amount
+
+	update_values()
+	sink.update_values()
+
+	return amount
+
 //Returns the amount of gas that has the given flag, in moles
 /datum/gas_mixture/proc/get_by_flag(flag)
 	. = 0
@@ -317,19 +428,19 @@
 		if(total_moles == 0 && sample.total_moles != 0 || sample.total_moles == 0 && total_moles != 0)
 			return 0
 
-	var/list/marked = list()
+	// Проверяем все газы из нашего списка
 	for(var/g in gas)
 		if((abs(gas[g] - sample.gas[g]) > MINIMUM_AIR_TO_SUSPEND) && \
 		((gas[g] < (1 - MINIMUM_AIR_RATIO_TO_SUSPEND) * sample.gas[g]) || \
 		(gas[g] > (1 + MINIMUM_AIR_RATIO_TO_SUSPEND) * sample.gas[g])))
 			return 0
-		marked[g] = 1
 
 	if(abs(return_pressure() - sample.return_pressure()) > MINIMUM_PRESSURE_DIFFERENCE_TO_SUSPEND)
 		return 0
 
+	// Проверяем газы из sample, которых нет у нас (вместо использования marked)
 	for(var/g in sample.gas)
-		if(!marked[g])
+		if(!(g in gas))
 			if((abs(gas[g] - sample.gas[g]) > MINIMUM_AIR_TO_SUSPEND) && \
 			((gas[g] < (1 - MINIMUM_AIR_RATIO_TO_SUSPEND) * sample.gas[g]) || \
 			(gas[g] > (1 + MINIMUM_AIR_RATIO_TO_SUSPEND) * sample.gas[g])))
@@ -424,16 +535,7 @@
 	var/full_heat_capacity = heat_capacity()
 	var/s_full_heat_capacity = other.heat_capacity()
 
-	var/list/avg_gas = list()
-
-	for(var/g in gas)
-		avg_gas[g] += gas[g] * size
-
-	for(var/g in other.gas)
-		avg_gas[g] += other.gas[g] * share_size
-
-	for(var/g in avg_gas)
-		avg_gas[g] /= (size + share_size)
+	var/divisor = size + share_size
 
 	var/temp_avg = 0
 	if(full_heat_capacity + s_full_heat_capacity)
@@ -444,10 +546,20 @@
 		ratio = sharing_lookup_table[connecting_tiles]
 	//WOOT WOOT TOUCH THIS AND YOU ARE A RETARD
 
-	for(var/g in avg_gas)
-		gas[g] = max(0, (gas[g] - avg_gas[g]) * (1 - ratio) + avg_gas[g])
+	// Газы из нашего списка — вычисляем avg и применяем сразу
+	for(var/g in gas)
+		var/other_amount = other.gas[g] || 0
+		var/avg = (gas[g] * size + other_amount * share_size) / divisor
+		gas[g] = max(0, (gas[g] - avg) * (1 - ratio) + avg)
 		if(!one_way)
-			other.gas[g] = max(0, (other.gas[g] - avg_gas[g]) * (1 - ratio) + avg_gas[g])
+			other.gas[g] = max(0, (other_amount - avg) * (1 - ratio) + avg)
+
+	// Газы из other, которых нет у нас
+	if(!one_way)
+		for(var/g in other.gas)
+			if(!(g in gas))
+				var/avg = (other.gas[g] * share_size) / divisor
+				other.gas[g] = max(0, (other.gas[g] - avg) * (1 - ratio) + avg)
 
 	temperature = max(0, (temperature - temp_avg) * (1-ratio) + temp_avg)
 	if(!one_way)
@@ -480,26 +592,34 @@
 			total_gas[g] += gasmix.gas[g]
 
 	if(total_volume > 0)
+		// Calculate average concentrations directly
+		for(var/g in total_gas)
+			total_gas[g] /= total_volume
+
+		// Calculate temperature
+		var/final_temp = 0
+		if(total_heat_capacity > 0)
+			final_temp = total_thermal_energy / total_heat_capacity
+
+		// Allow for reactions using a temporary mixture
 		var/datum/gas_mixture/combined = new(total_volume)
 		combined.gas = total_gas
-
-		//Calculate temperature
-		if(total_heat_capacity > 0)
-			combined.temperature = total_thermal_energy / total_heat_capacity
+		combined.temperature = final_temp
 		combined.update_values()
-
-		//Allow for reactions
 		combined.react()
 
-		//Average out the gases
-		for(var/g in combined.gas)
-			combined.gas[g] /= total_volume
-
-		//Update individual gas_mixtures
+		// Distribute averaged concentrations to each mixture
+		// Оптимизация: используем final_gas напрямую вместо создания new_gas для каждого gasmix
+		var/list/final_gas = combined.gas
+		final_temp = combined.temperature
 		for(var/datum/gas_mixture/gasmix in gases)
-			gasmix.gas = combined.gas.Copy()
-			gasmix.temperature = combined.temperature
-			gasmix.multiply(gasmix.volume)
+			var/vol = gasmix.volume
+			// Прямое модифицирование вместо создания нового списка
+			gasmix.gas.Cut()
+			for(var/g in final_gas)
+				gasmix.gas[g] = final_gas[g] * vol
+			gasmix.temperature = final_temp
+			gasmix.update_values()
 
 	return 1
 

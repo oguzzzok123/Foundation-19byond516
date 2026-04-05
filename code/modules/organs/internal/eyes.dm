@@ -103,7 +103,8 @@
 	if(is_broken())
 		owner.become_blind(DAMAGED_TRAIT)
 	else
-		owner.cure_blind(DAMAGED_TRAIT)
+		if(owner.is_blind())
+			owner.cure_blind(DAMAGED_TRAIT)
 
 /obj/item/organ/internal/eyes/Initialize()
 	. = ..()

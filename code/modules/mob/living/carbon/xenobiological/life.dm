@@ -96,7 +96,8 @@
 		lying = 1
 		become_blind(STAT_TRAIT)
 	else
-		cure_blind(STAT_TRAIT)
+		if(is_blind())
+			cure_blind(STAT_TRAIT)
 
 		if (paralysis || stunned || weakened || (status_flags && FAKEDEATH)) //Stunned etc.
 			if (stunned > 0)
