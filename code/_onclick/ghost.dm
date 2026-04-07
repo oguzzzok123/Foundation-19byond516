@@ -16,6 +16,10 @@
 			reenter_corpse()						// (cloning scanner, body bag, closet, exosuit, etc)
 			return
 
+	// Don't jump to ghost screen objects that have their own functionality
+	if(istype(A, /atom/movable/screen/ghost))
+		return
+
 	// Things you might plausibly want to follow
 	if(istype(A,/atom/movable))
 		start_following(A)
