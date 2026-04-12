@@ -169,8 +169,11 @@ GLOBAL_LIST_INIT(all_emotes, list(); for(var/emotepath in subtypesof(/datum/emot
 	else if(msg_1p)
 		to_chat(user, msg_1p)
 
+	if(ismob(user))
+		var/mob/M = user
+
 		// Floating chat
-		INVOKE_ASYNC(M, TYPE_PROC_REF(/atom/movable, animate_emote), use_3p, 0)
+		INVOKE_ASYNC(M, TYPE_PROC_REF(/atom/movable, animate_emote), msg_3p, 0)
 
 
 	var/emote_sound = get_sound(user, intentional)

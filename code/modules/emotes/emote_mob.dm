@@ -78,23 +78,24 @@
 
 
 	var/end_char = message[length(message)]
-	if(end_char != "." && end_char != "?" && end_char != "!" && end_char != "\"")
+	if(end_char != "." && end_char != "?" && end_char != "!" && end_char != "\"" && end_char != "*")
 		message += "."
-
+		// Floating chat
+		INVOKE_ASYNC(user_name, TYPE_PROC_REF(/atom/movable, animate_emote), emote_text, 1)
 	if(findtext(message, "^"))
 		message = "[capitalize(replacetext(message, regex(@"\^+", "g"), user_name))]"
 		// Floating chat
-		INVOKE_ASYNC(src, TYPE_PROC_REF(/atom/movable, animate_emote), emote_text, 1)
+		INVOKE_ASYNC(user_name, TYPE_PROC_REF(/atom/movable, animate_emote), emote_text, 1)
 	else
 		message = "[user_name] [message]"
 		// Floating chat
-		INVOKE_ASYNC(src, TYPE_PROC_REF(/atom/movable, animate_emote), emote_text, 1)
+		INVOKE_ASYNC(user_name, TYPE_PROC_REF(/atom/movable, animate_emote), emote_text, 1)
 	if(message_type & VISIBLE_MESSAGE)
 		visible_message(message, checkghosts = /datum/client_preference/ghost_sight)
 		// Floating chat
-		INVOKE_ASYNC(src, TYPE_PROC_REF(/atom/movable, animate_emote), emote_text, 1)
+		INVOKE_ASYNC(user_name, TYPE_PROC_REF(/atom/movable, animate_emote), emote_text, 1)
 	else
 		audible_message(message, checkghosts = /datum/client_preference/ghost_sight)
 		// Floating chat
-		INVOKE_ASYNC(src, TYPE_PROC_REF(/atom/movable, animate_emote), emote_text, 1)
+		INVOKE_ASYNC(user_name, TYPE_PROC_REF(/atom/movable, animate_emote), emote_text, 1)
 

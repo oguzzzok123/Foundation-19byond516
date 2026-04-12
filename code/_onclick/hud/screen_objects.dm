@@ -389,7 +389,7 @@
 				usr.update_inv_r_hand(0)
 	return 1
 
-/atom/movable/screen/fov
+/obj/screen/fov
 	icon = 'icons/mob/hide.dmi'
 	icon_state = "combat"
 	screen_loc = "1,1"
@@ -397,7 +397,7 @@
 	plane = VISION_CONE_PLANE
 	var/view
 
-/atom/movable/screen/fov/proc/update_size(size)
+/obj/screen/fov/proc/update_size(size)
 	if(view == size)
 		return
 	view = size
@@ -410,7 +410,8 @@
 	transform = matrix(actual_size[1] / 15, 0, x_translation, 0, actual_size[2] / 15, y_translation)
 
 
-/atom/movable/screen/fov/fov_mask
+
+/obj/screen/fov/fov_mask
 	icon = 'icons/mob/hide.dmi'
 	icon_state = "combat_mask_alt"
 	screen_loc = "1,1"
