@@ -55,7 +55,7 @@
 	cooldown =        30
 	use_ranged =      TRUE
 	use_manifest =    FALSE
-	min_rank =        PSI_RANK_GRANDMASTER
+	min_rank =        PSI_RANK_OPERANT
 	use_description = "Click on a distant target while on grab intent to manifest a psychokinetic grip. Use it manipulate objects at a distance."
 	admin_log = FALSE
 	use_sound = 'sounds/effects/psi/power_used.ogg'
@@ -70,7 +70,7 @@
 	if(.)
 
 		var/distance = get_dist(user, target)
-		if(distance > user.psi.get_rank(PSI_PSYCHOKINESIS))
+		if(distance > 10)
 			to_chat(user, SPAN_WARNING("Your telekinetic power won't reach that far."))
 			return FALSE
 
