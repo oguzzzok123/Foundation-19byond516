@@ -60,8 +60,8 @@
 
 	var/user_rank = owner.psi.get_rank(PSI_PSYCHOKINESIS) // Can only be above/equal to 4
 
-	user.setClickCooldown(CLICK_CD_ATTACK * (8 / user_rank))
-	user.psi.set_cooldown((32 / user_rank))
+	user.setClickCooldown(CLICK_CD_ATTACK * (6 / user_rank))
+	user.psi.set_cooldown((16 / user_rank))
 
 	var/user_psi_leech = user.do_psionics_check(5, user)
 	if(user_psi_leech)
@@ -73,7 +73,7 @@
 		return
 
 	var/distance = get_dist(get_turf(user), get_turf(focus ? focus : target))
-	if(distance > user.psi.get_rank(PSI_PSYCHOKINESIS))
+	if(distance > 10)
 		to_chat(user, SPAN_WARNING("Your telekinetic power won't reach that far."))
 		return FALSE
 
@@ -89,13 +89,13 @@
 				I.afterattack(target,user,1) // for splashing with beakers
 		else
 			if(!focus.anchored)
-				focus.throw_at(target, min(user_rank, 10), min(round(user_rank*0.8), 8), owner)
+				focus.throw_at(target, min(user_rank, 10), min(round(user_rank*1.6), 8), owner)
 			sleep(1)
 			sparkle()
 		if(user_rank < PSI_RANK_PARAMOUNT) // Memes
 			owner.drop_from_inventory(src)
 
-	if(!user.psi.spend_power(2)) // So you can't spam-click kill everything that moves
+	if(!user.psi.spend_power(15)) // So you can't spam-click kill everything that moves
 		return FALSE
 
 /obj/item/psychic_power/telekinesis/proc/sparkle()
